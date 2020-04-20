@@ -5,7 +5,7 @@ collaborative platform for transdisciplinary EEG exploitation.
 
 EEG can be a powerful tool for expression, that bridges the artistic and scientific experiences. 
 It allows to add a neurocognitive dimension to the domain of interactivity, with the potential to demistify the public understanding of the secret life of the brain. 
-The experience of neurofeedback- where internal state, thought, concentration and meditation can control auditory and visual scenes- is inspiring and fascinating. To be able to make it widely accessible is a precious opportunity, which is immediately compatible with the evergrowing scene of multimedia performances and dance.
+The experience of neurofeedback- where internal state, thought, concentration and meditation can control auditory and visual scenes, and other actuators- is inspiring and fascinating. To be able to make it widely accessible is a precious opportunity, which is immediately compatible with the evergrowing scene of multimedia performances and dance.
 
 The starting focus of this project is a simple Python pipeline for motor imagery BCI. This allows us to test the potential and limits of the available device. We also keep an eye on basic visualisations of neural oscillations.
 
@@ -60,7 +60,7 @@ b) Run openvibe Designer. Load "LSLstreamer.mxs", acquired from the Drive folder
 
 c) Open "Generic stream reader" node. Change path and filename to data file path and filename
 
-d) Open "LSL Export" node. Change "Signal stream" to 'EEG'
+d) Open "LSL Export" node. Change "Signal stream" to **EEG**
 
 e) Start scenario execution (play button)
 
