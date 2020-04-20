@@ -15,11 +15,12 @@ Based on mBrainTrain devices until open source options will become avaible.
 
 Device page: https://mbraintrain.com/support/
 
-*CREDENTIALS:
+*CREDENTIALS:*
 
 username: User_x73
 
-pass: xQ7b4etgv=6C*
+pass: xQ7b4etgv=6C
+
 
 Google doc for quick notes and general dumping: https://docs.google.com/document/d/1gqDmMJUV1vkObeEYlml45LO7qmUgNQ4syoi9aXsdOsI/edit?usp=sharing
 
