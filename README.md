@@ -64,7 +64,7 @@ d) Open "LSL Export" node. Change "Signal stream" to 'EEG'
 e) Start scenario execution (play button)
 
 
-**Step 2 : Acquire stream on python**
+**Step 2 : Acquire stream on python (REDUNDANT WITH LSL scripts for Data acquisition)** 
 
  a) With either Designer or Server running, run Python and execute code below, or see pylsls samples (link above)
 
