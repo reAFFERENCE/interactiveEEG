@@ -31,6 +31,8 @@ class MyWin(QtWidgets.QMainWindow):
     relpower_arrays_size = 20        # size of array for storing relative power values
     theta_relpower = []
     beta_relpower = []
+    alpharelpow = 0
+
     attention_val = 0
 
     polygon = QPolygonF()
@@ -39,10 +41,12 @@ class MyWin(QtWidgets.QMainWindow):
         QtWidgets.QWidget.__init__(self, parent)
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.setGeometry(600, 200, 892, 565)
+        self.setGeometry(600, 500, 900, 800)
         self.ui.pushButton.clicked.connect(self.startprocessing)
         self.ui.pushButton_2.clicked.connect(self.ext)
         self.ui.pushButton_3.clicked.connect(partial(self.update_allchans, True))
+        self.ui.pushButton_5.clicked.connect(self.drawturtle)
+
         self.ui.pushButton_4.clicked.connect(partial(self.update_allchans, False))
         self.ui.doubleSpinBox.setValue(self.buffer_size)
 
@@ -103,6 +107,48 @@ class MyWin(QtWidgets.QMainWindow):
 
     def startprocessing(self):
         self.timer.start(1)
+        
+    def drawturtle(self):
+
+        import turtle
+	
+        MINIMUM_BRANCH_LENGTH = 5
+
+        def build_tree(t, branch_length, shorten_by, angle):
+	
+          if branch_length > MINIMUM_BRANCH_LENGTH:
+
+            t.speed(int(self.alpharelpow*100)+1)
+
+            t.forward(branch_length)
+	
+            new_length = branch_length - shorten_by
+
+            t.left(angle)
+
+            build_tree(t, new_length, shorten_by, angle)
+
+            t.right(angle * 2)
+
+            build_tree(t, new_length, shorten_by, angle)
+
+            t.left(angle)
+
+            t.backward(branch_length)
+
+        tree = turtle.Turtle()
+
+        # tree.speed(100)
+
+        tree.hideturtle()
+
+        tree.setheading(90)
+
+        tree.color('green')
+
+        build_tree(tree, 50, 5, 30)
+
+        turtle.mainloop()
 
     def update_allchans(self, flag):
         self.ui.checkBox.setChecked(flag)
