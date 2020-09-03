@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(917, 814)
+        MainWindow.resize(924, 674)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.lineEdit = QtWidgets.QLineEdit(self.centralwidget)
@@ -455,9 +455,12 @@ class Ui_MainWindow(object):
         self.pushButton_5 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_5.setGeometry(QtCore.QRect(50, 560, 141, 31))
         self.pushButton_5.setObjectName("pushButton_5")
+        self.pushButton_6 = QtWidgets.QPushButton(self.centralwidget)
+        self.pushButton_6.setGeometry(QtCore.QRect(210, 560, 141, 31))
+        self.pushButton_6.setObjectName("pushButton_6")
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 917, 26))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 924, 26))
         self.menubar.setObjectName("menubar")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
@@ -518,3 +521,4 @@ class Ui_MainWindow(object):
         self.label_35.setText(_translate("MainWindow", "h-gamma"))
         self.label_36.setText(_translate("MainWindow", "Attention:"))
         self.pushButton_5.setText(_translate("MainWindow", "Start Drawing"))
+        self.pushButton_6.setText(_translate("MainWindow", "Start plotting stream"))
