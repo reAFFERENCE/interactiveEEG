@@ -8,14 +8,23 @@ from functools import partial
 from PyQt5.QtWidgets import QGraphicsScene
 from PyQt5.QtGui import QBrush, QColor, QPen, QPolygonF
 from PyQt5.QtCore import Qt, QPointF
-from pylive.pylive import live_plotter
 import matplotlib.pyplot as plt
 import numpy as np
+        # Import needed modules from osc4py
+from osc4py3.as_eventloop import *
+from osc4py3 import oscbuildparse
+        
+
 
 # use ggplot style for more sophisticated visuals
 plt.style.use('ggplot')
 
 class MyWin(QtWidgets.QMainWindow):
+            # Start the system.
+    osc_startup()
+        
+        # Make client channels to send packets.
+    osc_udp_client("127.0.0.1", 9023, "/a/b/c")
     streams = resolve_stream('name', 'EEG')
     # first resolve an EEG stream on the lab network
     print("looking for an EEG stream...")
@@ -37,21 +46,16 @@ class MyWin(QtWidgets.QMainWindow):
     theta_relpower = []
     beta_relpower = []
     alpharelpow = 0
+
     attention_val = 0
 
     polygon = QPolygonF()
-
-    #plotting variables
-    size = 50
-    x_vec = np.linspace(0, 50, size + 1)[0:-1]
-    y_vec = np.random.randn(len(x_vec))
-    line1 = []
 
     def __init__(self, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.setGeometry(500, 200, 900, 630)
+        self.setGeometry(600, 500, 900, 800)
         self.ui.pushButton.clicked.connect(self.startprocessing)
         self.ui.pushButton_2.clicked.connect(self.ext)
         self.ui.pushButton_3.clicked.connect(partial(self.update_allchans, True))
@@ -116,61 +120,88 @@ class MyWin(QtWidgets.QMainWindow):
                               QColor(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255),
                                      int(100 + self.attention_val * 10)))
 
+    
     def live_plotter(self,x_vec,y1_data,line1,identifier='',pause_time=0.1):
         if line1==[]:
             # this is the call to matplotlib that allows dynamic plotting
             plt.ion()
-            fig = plt.figure(figsize=(9,2))
+            fig = plt.figure(figsize=(13,6))
             ax = fig.add_subplot(111)
             # create a variable for the line so we can later update it
             line1, = ax.plot(x_vec,y1_data,'-o',alpha=0.8)        
             #update plot label/title
-            plt.ylabel('Raw Value')
-            plt.xticks([])
-            plt.title('{}'.format(identifier))
+            plt.ylabel('Y Label')
+            plt.title('Title: {}'.format(identifier))
             plt.show()
         
         # after the figure, axis, and line are created, we only need to update the y-data
         line1.set_ydata(y1_data)
         # adjust limits if new data goes beyond bounds
-        #if np.min(y1_data)<=line1.axes.get_ylim()[0] or np.max(y1_data)>=line1.axes.get_ylim()[1]:
-        plt.ylim([np.min(y1_data)-np.std(y1_data),np.max(y1_data)+np.std(y1_data)])
+        if np.min(y1_data)<=line1.axes.get_ylim()[0] or np.max(y1_data)>=line1.axes.get_ylim()[1]:
+            plt.ylim([np.min(y1_data)-np.std(y1_data),np.max(y1_data)+np.std(y1_data)])
         # this pauses the data so the figure/axis can catch up - the amount of pause can be altered above
         plt.pause(pause_time)
+        
         # return line so we can update it again in the next iteration
         return line1
 
     def startprocessing(self):
         self.timer.start(1)
-
     def drawstream(self):
+        from pylive.pylive import live_plotter
+        import numpy as np
+        
+        size = 100
+        x_vec = np.linspace(0,1,size+1)[0:-1]
+        y_vec = np.random.randn(len(x_vec))
+        line1 = []
         while True:
-            self.y_vec[-1] = self.average_val
-            self.line1 = self.live_plotter(self.x_vec,self.y_vec,self.line1,"Averaged signal")
-            self.y_vec = np.append(self.y_vec[1:],0.0)
-
+            
+            sample, timestamp = self.inlet.pull_sample()
+            y_vec[-1:] = sample[20]
+            line1 = live_plotter(x_vec,y_vec,line1)
+            y_vec = np.append(y_vec[1:],0.0)       
     def drawturtle(self):
+
+
         import turtle
+	
         MINIMUM_BRANCH_LENGTH = 5
 
         def build_tree(t, branch_length, shorten_by, angle):
+	
           if branch_length > MINIMUM_BRANCH_LENGTH:
+
             t.speed(int(self.alpharelpow*100)+1)
+
             t.forward(branch_length)
+	
             new_length = branch_length - shorten_by
+
             t.left(angle)
+
             build_tree(t, new_length, shorten_by, angle)
+
             t.right(angle * 2)
+
             build_tree(t, new_length, shorten_by, angle)
+
             t.left(angle)
+
             t.backward(branch_length)
 
         tree = turtle.Turtle()
+
         # tree.speed(100)
+
         tree.hideturtle()
+
         tree.setheading(90)
+
         tree.color('green')
+
         build_tree(tree, 50, 5, 30)
+
         turtle.mainloop()
 
     def update_allchans(self, flag):
@@ -373,7 +404,17 @@ class MyWin(QtWidgets.QMainWindow):
         elif self.attention_val < 0:
             self.attention_val = 0
         self.ui.progressBar_7.setValue(round(self.attention_val * 100))
-
+        msg = oscbuildparse.OSCMessage("/a/b/c", None, ["text",int(self.attention_val*100)])
+        osc_send(msg, "/a/b/c")
+        osc_send(msg, "/a/b/c")
+        osc_send(msg, "/a/b/c")
+        osc_send(msg, "/a/b/c")
+        print(int(self.attention_val*100))
+        osc_process()
+        osc_process()
+        osc_process()
+        osc_process()
+        osc_process()
     def updatedata(self):
         sample, timestamp = self.inlet.pull_sample()
 
