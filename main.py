@@ -11,11 +11,17 @@ from PyQt5.QtCore import Qt, QPointF
 from pylive.pylive import live_plotter
 import matplotlib.pyplot as plt
 import numpy as np
+# Import needed modules from pythonosc
+from pythonosc.udp_client import SimpleUDPClient
 
 # use ggplot style for more sophisticated visuals
 plt.style.use('ggplot')
 
 class MyWin(QtWidgets.QMainWindow):
+    osc_ip = "127.0.0.1"
+    osc_port = 9023
+    osc_client = SimpleUDPClient(osc_ip, osc_port)  # Create client
+
     streams = resolve_stream('name', 'EEG')
     # first resolve an EEG stream on the lab network
     print("looking for an EEG stream...")
@@ -292,6 +298,7 @@ class MyWin(QtWidgets.QMainWindow):
         gb_rel = self.bandpower(self.buffer_vals, self.samp_rate, [27, 60], win_sec, True)
         hgb_rel = self.bandpower(self.buffer_vals, self.samp_rate, [60, self.samp_rate / 2], win_sec, True)
         sum_rel = db_rel + tb_rel + ab_rel + bb_rel + gb_rel + hgb_rel
+        self.alpharelpow = ab_rel
         # print("{0:4.2f},{1:4.2f},{2:4.2f},{3:4.2f},{4:4.2f},{5:4.2f},{6:4.2f}".format(db_rel, tb_rel, ab_rel, bb_rel,
         #                                                                              gb_rel, hgb_rel, sum_rel))
 
@@ -340,8 +347,13 @@ class MyWin(QtWidgets.QMainWindow):
         self.ui.lineEdit_25.setText(str(round(sample[24])))
         self.ui.lineEdit_26.setText(str(round(sample[25])))
         self.ui.lineEdit_27.setText(str(round(sample[26])))
+        self.osc_client.send_message("/gyro/x", round(sample[24]))
+        self.osc_client.send_message("/gyro/y", round(sample[25]))
+        self.osc_client.send_message("/gyro/z", round(sample[26]))
 
         self.ui.lineEdit_28.setText(str(round(timestamp)))
+        self.osc_client.send_message("/timestamp", round(timestamp))
+
 
     def update_attention(self, tb_rel, bb_rel):
         if self.num_active_chan == 0:
@@ -373,6 +385,9 @@ class MyWin(QtWidgets.QMainWindow):
         elif self.attention_val < 0:
             self.attention_val = 0
         self.ui.progressBar_7.setValue(round(self.attention_val * 100))
+        print(int(self.attention_val * 100))
+        self.osc_client.send_message("/eeg/attention", int(self.attention_val * 100))
+        self.osc_client.send_message("/eeg/alpha", int(self.alpharelpow * 100))
 
     def updatedata(self):
         sample, timestamp = self.inlet.pull_sample()
