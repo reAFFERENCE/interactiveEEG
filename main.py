@@ -33,6 +33,19 @@ class MyWin(QtWidgets.QMainWindow):
     n_points = 0  # number of obtained points
     buffer_size = 0.5 # seconds, size of buffer
     buffer_vals = np.zeros(int(buffer_size*samp_rate))
+
+    buffer_channels = []
+    for i in range(24):
+        buffer_channels.append(np.zeros(int(buffer_size*samp_rate)))
+
+    fdb = open("delta_band.csv", "w")
+    ftb = open("theta_band.csv", "w")
+    fab = open("alpha_band.csv", "w")
+    fbb = open("beta_band.csv", "w")
+    fgb = open("gamma_band.csv", "w")
+    fhgb = open("hgamma_band.csv", "w")
+    timestmp = 0
+
     num_active_chan = 24
     average_val = 0 # averaged value - used for relative power and attention estimation
     for i in range(24):
@@ -285,6 +298,47 @@ class MyWin(QtWidgets.QMainWindow):
             return 0
         return bp
 
+    def update_freqbandspower_allchans(self):
+        win_sec = self.buffer_size
+
+        self.fdb.write("{0:4.1f}".format(self.timestmp)+',')
+        self.ftb.write("{0:4.1f}".format(self.timestmp)+',')
+        self.fab.write("{0:4.1f}".format(self.timestmp)+',')
+        self.fbb.write("{0:4.1f}".format(self.timestmp)+',')
+        self.fgb.write("{0:4.1f}".format(self.timestmp)+',')
+        self.fhgb.write("{0:4.1f}".format(self.timestmp)+',')
+
+        for i in range(24):
+            db_rel = self.bandpower(self.buffer_channels[i], self.samp_rate, [0.5, 4], win_sec, True)
+            tb_rel = self.bandpower(self.buffer_channels[i], self.samp_rate, [4, 8], win_sec, True)
+            ab_rel = self.bandpower(self.buffer_channels[i], self.samp_rate, [8, 12], win_sec, True)
+            bb_rel = self.bandpower(self.buffer_channels[i], self.samp_rate, [12, 27], win_sec, True)
+            gb_rel = self.bandpower(self.buffer_channels[i], self.samp_rate, [27, 60], win_sec, True)
+            hgb_rel = self.bandpower(self.buffer_channels[i], self.samp_rate, [60, self.samp_rate / 2], win_sec, True)
+            endch = ','
+            if (i==23):
+                endch = ''
+            self.fdb.write("{0:4.3f}".format(db_rel)+endch)
+            self.ftb.write("{0:4.3f}".format(tb_rel)+endch)
+            self.fab.write("{0:4.3f}".format(ab_rel)+endch)
+            self.fbb.write("{0:4.3f}".format(bb_rel)+endch)
+            self.fgb.write("{0:4.3f}".format(gb_rel)+endch)
+            self.fhgb.write("{0:4.3f}".format(hgb_rel)+endch)
+            #print("{0:4.2f},{1:4.2f},{2:4.2f},{3:4.2f},{4:4.2f},{5:4.2f}".format(db_rel, tb_rel, ab_rel, bb_rel, gb_rel, hgb_rel))
+
+        self.fdb.write('\n')
+        self.ftb.write('\n')
+        self.fab.write('\n')
+        self.fbb.write('\n')
+        self.fgb.write('\n')
+        self.fhgb.write('\n')
+        self.fdb.flush()
+        self.ftb.flush()
+        self.fab.flush()
+        self.fbb.flush()
+        self.fgb.flush()
+        self.fhgb.flush()
+
     def update_freqbandspower(self):
         if self.num_active_chan == 0:
             return
@@ -385,17 +439,19 @@ class MyWin(QtWidgets.QMainWindow):
         elif self.attention_val < 0:
             self.attention_val = 0
         self.ui.progressBar_7.setValue(round(self.attention_val * 100))
-        print(int(self.attention_val * 100))
+        #print(int(self.attention_val * 100))
         self.osc_client.send_message("/eeg/attention", int(self.attention_val * 100))
         self.osc_client.send_message("/eeg/alpha", int(self.alpharelpow * 100))
 
     def updatedata(self):
         sample, timestamp = self.inlet.pull_sample()
+        self.timestmp = timestamp
 
         self.average_val = 0
         for i in range(24):
             if self.active_channels[i] == 1:
                 self.average_val += sample[i]
+            self.buffer_channels[i][self.n_points] = sample[i]
 
         if self.num_active_chan > 0:
             self.average_val /= self.num_active_chan
@@ -408,14 +464,23 @@ class MyWin(QtWidgets.QMainWindow):
         if self.n_points == self.buffer_size*self.samp_rate:
             self.update_rawchannels(sample, timestamp)
             self.update_freqbandspower()
+            self.update_freqbandspower_allchans()
             self.drawshapes()
             self.ui.lineEdit_29.setText(str(round(self.average_val)))
             self.n_points = 0
             self.buffer_size = self.ui.doubleSpinBox.value()
             self.buffer_vals = np.zeros(int(self.buffer_size*self.samp_rate))
+            for i in range(24):
+                self.buffer_channels[i] = np.zeros(int(self.buffer_size * self.samp_rate))
 
     def ext(self):
         """ exit the application """
+        self.fdb.close()
+        self.ftb.close()
+        self.fab.close()
+        self.fbb.close()
+        self.fgb.close()
+        self.fhg.close()
         sys.exit()
 
 
