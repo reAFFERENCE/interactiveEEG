@@ -8,11 +8,17 @@ from functools import partial
 from PyQt5.QtWidgets import QGraphicsScene
 from PyQt5.QtGui import QBrush, QColor, QPen, QPolygonF
 from PyQt5.QtCore import Qt, QPointF
-from pylive.pylive import live_plotter
+#from pylive.pylive import live_plotter
 import matplotlib.pyplot as plt
 import numpy as np
 # Import needed modules from pythonosc
 from pythonosc.udp_client import SimpleUDPClient
+
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.model_selection import ShuffleSplit
+from mne.decoding import CSP
+from scipy.signal import filtfilt, butter, lfilter, lfilter_zi
+from joblib import dump, load
 
 # use ggplot style for more sophisticated visuals
 plt.style.use('ggplot')
@@ -65,6 +71,22 @@ class MyWin(QtWidgets.QMainWindow):
     x_vec = np.linspace(0, 50, size + 1)[0:-1]
     y_vec = np.random.randn(len(x_vec))
     line1 = []
+
+    # for motor imagery
+    motor_imagery_out = 0  # positive values reflect left hand imagery, negative values right hand
+    n_output_integrate = 8 # how many motor imagery classifier outputs to integrate
+    pred_buffer = np.zeros(n_output_integrate+1)
+
+    # set filter coefficients
+    sfreq = 500 # or user already existing variable that specifies the sampling rate
+    b_bp, a_bp = butter(2, np.array([8, 30]) / sfreq * 2, 'bandpass')
+    zi_previous_bp = []
+    for i in range(24):
+        zi_previous_bp.append(lfilter_zi(b_bp, a_bp))
+    zi_previous_bp = np.array(zi_previous_bp)
+
+    b_pred, a_pred = butter(2, np.array([0.15]) / sfreq * 2, 'lowpass')
+    zi_previous_pred = lfilter_zi(b_pred, a_pred)
 
     def __init__(self, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
@@ -443,6 +465,37 @@ class MyWin(QtWidgets.QMainWindow):
         self.osc_client.send_message("/eeg/attention", int(self.attention_val * 100))
         self.osc_client.send_message("/eeg/alpha", int(self.alpharelpow * 100))
 
+
+    def apply_csp_lda_online(self):
+        # retrieve data
+        signal_tmp = np.array(self.buffer_channels)
+
+        # filter incoming signal (and use previous filter state)
+        for i in range(24):
+            signal_tmp[i, ], self.zi_previous_bp[i, ] = lfilter(self.b_bp, self.a_bp, signal_tmp[i, ], axis=-1, zi=self.zi_previous_bp[i, ])
+
+        # bring data into right format
+        signal_tmp = np.expand_dims(signal_tmp, 0)  # dimensions for CSP: epochs x channels x samples (1,24,n_samples_integrate)
+
+        # load CSP+LDA from training (pre-allocate this to class MyWin? self.csp = ...)
+        csp = load('csp_stored.joblib')
+        lda = load('lda_stored.joblib')
+
+        # apply CSP filters + LDA
+        fea_tmp = csp.transform(signal_tmp)
+        pred_tmp = lda.decision_function(fea_tmp)
+
+        # put in array for prediction values
+        # pred_cont.append(list(pred_tmp))
+        # pred_cont = pred_cont[-n_output_integrate:] # only keep last values in buffer
+        self.pred_buffer[:self.n_output_integrate] = self.pred_buffer[-self.n_output_integrate:]  # shift to the left by one
+        self.pred_buffer[self.n_output_integrate] = pred_tmp  # add prediction of this loop
+
+        # low-pass filter classifier outputs
+        self.motor_imagery_out, self.zi_previous_pred = lfilter(self.b_pred, self.a_pred, pred_tmp, axis=-1, zi=self.zi_previous_pred)
+        #print(self.motor_imagery_out)
+
+
     def updatedata(self):
         sample, timestamp = self.inlet.pull_sample()
         self.timestmp = timestamp
@@ -465,6 +518,7 @@ class MyWin(QtWidgets.QMainWindow):
             self.update_rawchannels(sample, timestamp)
             self.update_freqbandspower()
             self.update_freqbandspower_allchans()
+            self.apply_csp_lda_online()  # added TS 10/2020
             self.drawshapes()
             self.ui.lineEdit_29.setText(str(round(self.average_val)))
             self.n_points = 0
