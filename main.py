@@ -10,7 +10,6 @@ from PyQt5.QtGui import QBrush, QColor, QPen, QPolygonF
 from PyQt5.QtCore import Qt, QPointF
 #from pylive.pylive import live_plotter
 import matplotlib.pyplot as plt
-import numpy as np
 # Import needed modules from pythonosc
 from pythonosc.udp_client import SimpleUDPClient
 
@@ -76,6 +75,7 @@ class MyWin(QtWidgets.QMainWindow):
     motor_imagery_out = 0  # positive values reflect left hand imagery, negative values right hand
     n_output_integrate = 8 # how many motor imagery classifier outputs to integrate
     pred_buffer = np.zeros(n_output_integrate+1)
+    motor_imagery_out_save = [] # for debugging
 
     # set filter coefficients
     sfreq = 500 # or user already existing variable that specifies the sampling rate
@@ -85,7 +85,7 @@ class MyWin(QtWidgets.QMainWindow):
         zi_previous_bp.append(lfilter_zi(b_bp, a_bp))
     zi_previous_bp = np.array(zi_previous_bp)
 
-    b_pred, a_pred = butter(2, np.array([0.15]) / sfreq * 2, 'lowpass')
+    b_pred, a_pred = butter(2, np.array([0.15]) / (sfreq/(sfreq*buffer_size)) * 2, 'lowpass') # adapted to sampling rate of buffer
     zi_previous_pred = lfilter_zi(b_pred, a_pred)
 
     def __init__(self, parent=None):
@@ -474,6 +474,9 @@ class MyWin(QtWidgets.QMainWindow):
         for i in range(24):
             signal_tmp[i, ], self.zi_previous_bp[i, ] = lfilter(self.b_bp, self.a_bp, signal_tmp[i, ], axis=-1, zi=self.zi_previous_bp[i, ])
 
+        # scale signal (depending on input; signal range should be around +-25 µV)
+        signal_tmp = signal_tmp / 10 ** 6
+
         # bring data into right format
         signal_tmp = np.expand_dims(signal_tmp, 0)  # dimensions for CSP: epochs x channels x samples (1,24,n_samples_integrate)
 
@@ -490,10 +493,12 @@ class MyWin(QtWidgets.QMainWindow):
         # pred_cont = pred_cont[-n_output_integrate:] # only keep last values in buffer
         self.pred_buffer[:self.n_output_integrate] = self.pred_buffer[-self.n_output_integrate:]  # shift to the left by one
         self.pred_buffer[self.n_output_integrate] = pred_tmp  # add prediction of this loop
+        #(actually, the buffer for the prediction output is not needed if we just low-pass filter but let´s keep it for now in case we switch to a moving average)
 
         # low-pass filter classifier outputs
         self.motor_imagery_out, self.zi_previous_pred = lfilter(self.b_pred, self.a_pred, pred_tmp, axis=-1, zi=self.zi_previous_pred)
         #print(self.motor_imagery_out)
+        self.motor_imagery_out_save.append(self.motor_imagery_out) # for debugging
 
 
     def updatedata(self):
