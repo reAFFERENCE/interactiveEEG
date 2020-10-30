@@ -8,8 +8,10 @@ from functools import partial
 from PyQt5.QtWidgets import QGraphicsScene
 from PyQt5.QtGui import QBrush, QColor, QPen, QPolygonF
 from PyQt5.QtCore import Qt, QPointF
-#from pylive.pylive import live_plotter
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Qt5Agg')
+import numpy as np
 # Import needed modules from pythonosc
 from pythonosc.udp_client import SimpleUDPClient
 
@@ -33,6 +35,7 @@ class MyWin(QtWidgets.QMainWindow):
     # create a new inlet to read from the stream
     inlet = StreamInlet(streams[0])
     timer = QtCore.QTimer()
+    plot_timer = QtCore.QTimer()
     active_channels = [] # array of "active" channels - used for averaged signal
     samp_rate = 500 # sampling rate
     n_points = 0  # number of obtained points
@@ -61,6 +64,7 @@ class MyWin(QtWidgets.QMainWindow):
     theta_relpower = []
     beta_relpower = []
     alpharelpow = 0
+    gammarelpow = 0
     attention_val = 0
 
     polygon = QPolygonF()
@@ -73,31 +77,38 @@ class MyWin(QtWidgets.QMainWindow):
 
     # for motor imagery
     motor_imagery_out = 0  # positive values reflect left hand imagery, negative values right hand
-    n_output_integrate = 8 # how many motor imagery classifier outputs to integrate
-    pred_buffer = np.zeros(n_output_integrate+1)
-    motor_imagery_out_save = [] # for debugging
+    n_output_integrate = 8  # how many motor imagery classifier outputs to integrate
+    pred_buffer = np.zeros(n_output_integrate + 1)
+    motor_imagery_out_save = []  # for debugging
 
     # set filter coefficients
-    sfreq = 500 # or user already existing variable that specifies the sampling rate
+    sfreq = 500  # or user already existing variable that specifies the sampling rate
     b_bp, a_bp = butter(2, np.array([8, 30]) / sfreq * 2, 'bandpass')
     zi_previous_bp = []
     for i in range(24):
         zi_previous_bp.append(lfilter_zi(b_bp, a_bp))
     zi_previous_bp = np.array(zi_previous_bp)
 
-    b_pred, a_pred = butter(2, np.array([0.15]) / (sfreq/(sfreq*buffer_size)) * 2, 'lowpass') # adapted to sampling rate of buffer
+    b_pred, a_pred = butter(2, np.array([0.15]) / (sfreq / (sfreq * buffer_size)) * 2,
+                            'lowpass')  # adapted to sampling rate of buffer
     zi_previous_pred = lfilter_zi(b_pred, a_pred)
+
 
     def __init__(self, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.setGeometry(500, 200, 900, 630)
+        self.setGeometry(500, 200, 900, 580)
         self.ui.pushButton.clicked.connect(self.startprocessing)
+        self.ui.pushButton.setGeometry(QtCore.QRect(50, 510, 120, 28))
         self.ui.pushButton_2.clicked.connect(self.ext)
+        self.ui.pushButton_2.setGeometry(QtCore.QRect(740, 510, 70, 28))
         self.ui.pushButton_3.clicked.connect(partial(self.update_allchans, True))
         self.ui.pushButton_5.clicked.connect(self.drawturtle)
-        self.ui.pushButton_6.clicked.connect(self.drawstream)
+        self.ui.pushButton_5.setVisible(False)
+        self.ui.pushButton_6.clicked.connect(self.startdrawstream)
+        self.ui.pushButton_6.setText("Plot Average signal")
+        self.ui.pushButton_6.setGeometry(QtCore.QRect(180, 510, 140, 28))
 
         self.ui.pushButton_4.clicked.connect(partial(self.update_allchans, False))
         self.ui.doubleSpinBox.setValue(self.buffer_size)
@@ -140,6 +151,7 @@ class MyWin(QtWidgets.QMainWindow):
         self.ui.checkBox_24.stateChanged.connect(self.update_activechannels)
 
         self.timer.timeout.connect(self.updatedata)
+        self.plot_timer.timeout.connect(self.drawstream)
 
     def drawshapes(self):
         # self.scene.addEllipse(20,20,200,200,self.pen,self.shape_brush)
@@ -157,14 +169,18 @@ class MyWin(QtWidgets.QMainWindow):
                               QColor(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255),
                                      int(100 + self.attention_val * 10)))
 
+    def on_liveplot_close(self, event):
+        self.plot_timer.stop()
+
     def live_plotter(self,x_vec,y1_data,line1,identifier='',pause_time=0.1):
         if line1==[]:
             # this is the call to matplotlib that allows dynamic plotting
-            plt.ion()
+            #plt.ion()
             fig = plt.figure(figsize=(9,2))
+            fig.canvas.mpl_connect('close_event', self.on_liveplot_close)
             ax = fig.add_subplot(111)
             # create a variable for the line so we can later update it
-            line1, = ax.plot(x_vec,y1_data,'-o',alpha=0.8)        
+            line1, = ax.plot(x_vec,y1_data,'-o',alpha=0.8)
             #update plot label/title
             plt.ylabel('Raw Value')
             plt.xticks([])
@@ -184,11 +200,14 @@ class MyWin(QtWidgets.QMainWindow):
     def startprocessing(self):
         self.timer.start(1)
 
+    def startdrawstream(self):
+        self.line1=[]
+        self.plot_timer.start(10)
+
     def drawstream(self):
-        while True:
-            self.y_vec[-1] = self.average_val
-            self.line1 = self.live_plotter(self.x_vec,self.y_vec,self.line1,"Averaged signal")
-            self.y_vec = np.append(self.y_vec[1:],0.0)
+        self.y_vec[-1] = self.average_val
+        self.line1 = self.live_plotter(self.x_vec,self.y_vec,self.line1,"Average raw signal")
+        self.y_vec = np.append(self.y_vec[1:],0.0)
 
     def drawturtle(self):
         import turtle
@@ -320,6 +339,41 @@ class MyWin(QtWidgets.QMainWindow):
             return 0
         return bp
 
+    def apply_csp_lda_online(self):
+        # retrieve data
+        signal_tmp = np.array(self.buffer_channels)
+
+        # filter incoming signal (and use previous filter state)
+        for i in range(24):
+            signal_tmp[i, ], self.zi_previous_bp[i, ] = lfilter(self.b_bp, self.a_bp, signal_tmp[i, ], axis=-1, zi=self.zi_previous_bp[i, ])
+
+        # scale signal (depending on input; signal range should be around +-25 µV)
+        signal_tmp = signal_tmp / 10 ** 6
+
+        # bring data into right format
+        signal_tmp = np.expand_dims(signal_tmp, 0)  # dimensions for CSP: epochs x channels x samples (1,24,n_samples_integrate)
+
+        # load CSP+LDA from training (pre-allocate this to class MyWin? self.csp = ...)
+        csp = load('csp_stored.joblib')
+        lda = load('lda_stored.joblib')
+
+        # apply CSP filters + LDA
+        fea_tmp = csp.transform(signal_tmp)
+        pred_tmp = lda.decision_function(fea_tmp)
+
+        # put in array for prediction values
+        # pred_cont.append(list(pred_tmp))
+        # pred_cont = pred_cont[-n_output_integrate:] # only keep last values in buffer
+        self.pred_buffer[:self.n_output_integrate] = self.pred_buffer[-self.n_output_integrate:]  # shift to the left by one
+        self.pred_buffer[self.n_output_integrate] = pred_tmp  # add prediction of this loop
+        # (actually, the buffer for the prediction output is not needed if we just low-pass filter but let´s keep it for now in case we switch to a moving average)
+
+        # low-pass filter classifier outputs
+        self.motor_imagery_out, self.zi_previous_pred = lfilter(self.b_pred, self.a_pred, pred_tmp, axis=-1, zi=self.zi_previous_pred)
+        print(self.motor_imagery_out)
+        self.osc_client.send_message("/motor_imagery", self.motor_imagery_out)
+        self.motor_imagery_out_save.append(self.motor_imagery_out)  # for debugging
+
     def update_freqbandspower_allchans(self):
         win_sec = self.buffer_size
 
@@ -375,6 +429,7 @@ class MyWin(QtWidgets.QMainWindow):
         hgb_rel = self.bandpower(self.buffer_vals, self.samp_rate, [60, self.samp_rate / 2], win_sec, True)
         sum_rel = db_rel + tb_rel + ab_rel + bb_rel + gb_rel + hgb_rel
         self.alpharelpow = ab_rel
+        self.gammarelpow = gb_rel
         # print("{0:4.2f},{1:4.2f},{2:4.2f},{3:4.2f},{4:4.2f},{5:4.2f},{6:4.2f}".format(db_rel, tb_rel, ab_rel, bb_rel,
         #                                                                              gb_rel, hgb_rel, sum_rel))
 
@@ -464,42 +519,7 @@ class MyWin(QtWidgets.QMainWindow):
         #print(int(self.attention_val * 100))
         self.osc_client.send_message("/eeg/attention", int(self.attention_val * 100))
         self.osc_client.send_message("/eeg/alpha", int(self.alpharelpow * 100))
-
-
-    def apply_csp_lda_online(self):
-        # retrieve data
-        signal_tmp = np.array(self.buffer_channels)
-
-        # filter incoming signal (and use previous filter state)
-        for i in range(24):
-            signal_tmp[i, ], self.zi_previous_bp[i, ] = lfilter(self.b_bp, self.a_bp, signal_tmp[i, ], axis=-1, zi=self.zi_previous_bp[i, ])
-
-        # scale signal (depending on input; signal range should be around +-25 µV)
-        signal_tmp = signal_tmp / 10 ** 6
-
-        # bring data into right format
-        signal_tmp = np.expand_dims(signal_tmp, 0)  # dimensions for CSP: epochs x channels x samples (1,24,n_samples_integrate)
-
-        # load CSP+LDA from training (pre-allocate this to class MyWin? self.csp = ...)
-        csp = load('csp_stored.joblib')
-        lda = load('lda_stored.joblib')
-
-        # apply CSP filters + LDA
-        fea_tmp = csp.transform(signal_tmp)
-        pred_tmp = lda.decision_function(fea_tmp)
-
-        # put in array for prediction values
-        # pred_cont.append(list(pred_tmp))
-        # pred_cont = pred_cont[-n_output_integrate:] # only keep last values in buffer
-        self.pred_buffer[:self.n_output_integrate] = self.pred_buffer[-self.n_output_integrate:]  # shift to the left by one
-        self.pred_buffer[self.n_output_integrate] = pred_tmp  # add prediction of this loop
-        #(actually, the buffer for the prediction output is not needed if we just low-pass filter but let´s keep it for now in case we switch to a moving average)
-
-        # low-pass filter classifier outputs
-        self.motor_imagery_out, self.zi_previous_pred = lfilter(self.b_pred, self.a_pred, pred_tmp, axis=-1, zi=self.zi_previous_pred)
-        #print(self.motor_imagery_out)
-        self.motor_imagery_out_save.append(self.motor_imagery_out) # for debugging
-
+        self.osc_client.send_message("/eeg/gamma", int(self.gammarelpow * 100))
 
     def updatedata(self):
         sample, timestamp = self.inlet.pull_sample()
@@ -519,11 +539,13 @@ class MyWin(QtWidgets.QMainWindow):
         self.buffer_vals[self.n_points] = self.average_val
         self.n_points += 1
 
+        self.osc_client.send_message("/eeg/raw", self.average_val)
+
         if self.n_points == self.buffer_size*self.samp_rate:
             self.update_rawchannels(sample, timestamp)
             self.update_freqbandspower()
             self.update_freqbandspower_allchans()
-            self.apply_csp_lda_online()  # added TS 10/2020
+            self.apply_csp_lda_online()
             self.drawshapes()
             self.ui.lineEdit_29.setText(str(round(self.average_val)))
             self.n_points = 0
@@ -534,6 +556,8 @@ class MyWin(QtWidgets.QMainWindow):
 
     def ext(self):
         """ exit the application """
+        self.plot_timer.stop()
+        self.timer.stop()
         self.fdb.close()
         self.ftb.close()
         self.fab.close()
