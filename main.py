@@ -67,6 +67,13 @@ class MyWin(QtWidgets.QMainWindow):
     gammarelpow = 0
     attention_val = 0
 
+    attention_source_ind = 0 # for average
+    alpha_source_ind = 0     # for average
+    attention_val_fromchannel = 0
+    alpha_val_fromchannel = 0
+    theta_relpower_fromchan = []
+    beta_relpower_fromchan = []
+
     polygon = QPolygonF()
 
     #plotting variables
@@ -109,9 +116,10 @@ class MyWin(QtWidgets.QMainWindow):
         self.ui.pushButton_6.clicked.connect(self.startdrawstream)
         self.ui.pushButton_6.setText("Plot Average signal")
         self.ui.pushButton_6.setGeometry(QtCore.QRect(180, 510, 140, 28))
-
         self.ui.pushButton_4.clicked.connect(partial(self.update_allchans, False))
         self.ui.doubleSpinBox.setValue(self.buffer_size)
+        self.ui.comboBox.currentIndexChanged.connect(self.on_attentionsource_box_changed)
+        self.ui.comboBox_2.currentIndexChanged.connect(self.on_alphasource_box_changed)
 
         self.scene = QGraphicsScene(self)
         self.scene.setBackgroundBrush(QBrush(QColor(0, 0, 0, 255)))
@@ -152,6 +160,12 @@ class MyWin(QtWidgets.QMainWindow):
 
         self.timer.timeout.connect(self.updatedata)
         self.plot_timer.timeout.connect(self.drawstream)
+
+    def on_attentionsource_box_changed(self, value):
+        self.attention_source_ind = value
+
+    def on_alphasource_box_changed(self, value):
+        self.alpha_source_ind = value
 
     def drawshapes(self):
         # self.scene.addEllipse(20,20,200,200,self.pen,self.shape_brush)
@@ -400,6 +414,12 @@ class MyWin(QtWidgets.QMainWindow):
             self.fbb.write("{0:4.3f}".format(bb_rel)+endch)
             self.fgb.write("{0:4.3f}".format(gb_rel)+endch)
             self.fhgb.write("{0:4.3f}".format(hgb_rel)+endch)
+            if i == self.alpha_source_ind - 1:
+                self.alpha_val_fromchannel = ab_rel
+                self.ui.progressBar_3.setValue(round(self.alpha_val_fromchannel * 100))
+                self.ui.lineEdit_32.setText(str(int(self.alpha_val_fromchannel * 100)) + "%")
+            if i == self.attention_source_ind - 1:
+                self.update_attention_fromchan(tb_rel, bb_rel)
             #print("{0:4.2f},{1:4.2f},{2:4.2f},{3:4.2f},{4:4.2f},{5:4.2f}".format(db_rel, tb_rel, ab_rel, bb_rel, gb_rel, hgb_rel))
 
         self.fdb.write('\n')
@@ -439,8 +459,10 @@ class MyWin(QtWidgets.QMainWindow):
         self.ui.lineEdit_30.setText(str(int(db_rel*100))+"%")
         self.ui.progressBar_2.setValue(round(tb_rel * 100))
         self.ui.lineEdit_31.setText(str(int(tb_rel * 100)) + "%")
-        self.ui.progressBar_3.setValue(round(ab_rel * 100))
-        self.ui.lineEdit_32.setText(str(int(ab_rel * 100)) + "%")
+
+        if self.alpha_source_ind == 0:
+            self.ui.progressBar_3.setValue(round(ab_rel * 100))
+            self.ui.lineEdit_32.setText(str(int(ab_rel * 100)) + "%")
         self.ui.progressBar_4.setValue(round(bb_rel * 100))
         self.ui.lineEdit_33.setText(str(int(bb_rel * 100)) + "%")
         self.ui.progressBar_5.setValue(round(gb_rel * 100))
@@ -485,6 +507,33 @@ class MyWin(QtWidgets.QMainWindow):
         self.ui.lineEdit_28.setText(str(round(timestamp)))
         self.osc_client.send_message("/timestamp", round(timestamp))
 
+    def update_attention_fromchan(self, tb_rel, bb_rel):
+        self.theta_relpower_fromchan.append(tb_rel)
+        self.beta_relpower_fromchan.append(bb_rel)
+        if len(self.theta_relpower_fromchan) == self.relpower_arrays_size:
+            self.theta_relpower_fromchan.pop(0)
+            self.beta_relpower_fromchan.pop(0)
+
+        if len(self.theta_relpower_fromchan) < self.attention_estimation_points:
+            if bb_rel < 0.01:
+                bb_rel = 0.01
+            self.attention_val_fromchannel = (1 - tb_rel / bb_rel)
+        else:
+            thetv = 0
+            betav = 0
+            for i in range(self.attention_estimation_points):
+                thetv += self.theta_relpower_fromchan[len(self.theta_relpower_fromchan) - i - 1]
+                betav += self.beta_relpower_fromchan[len(self.beta_relpower_fromchan) - i - 1]
+            thetv /= self.attention_estimation_points
+            betav /= self.attention_estimation_points
+            self.attention_val_fromchannel = (1 - thetv / betav)
+
+        if self.attention_val_fromchannel > 1:
+            self.attention_val_fromchannel = 1
+        elif self.attention_val_fromchannel < 0:
+            self.attention_val_fromchannel = 0
+
+        #print(self.attention_val_fromchannel)
 
     def update_attention(self, tb_rel, bb_rel):
         if self.num_active_chan == 0:
@@ -505,7 +554,7 @@ class MyWin(QtWidgets.QMainWindow):
             betav = 0
             for i in range(self.attention_estimation_points):
                 thetv += self.theta_relpower[len(self.theta_relpower) - i - 1]
-                betav += self.beta_relpower[len(self.theta_relpower) - i - 1]
+                betav += self.beta_relpower[len(self.beta_relpower) - i - 1]
             thetv /= self.attention_estimation_points
             betav /= self.attention_estimation_points
             self.attention_val = (1 - thetv / betav)
@@ -515,10 +564,20 @@ class MyWin(QtWidgets.QMainWindow):
             self.attention_val = 1
         elif self.attention_val < 0:
             self.attention_val = 0
-        self.ui.progressBar_7.setValue(round(self.attention_val * 100))
+        if self.attention_source_ind == 0:
+            self.ui.progressBar_7.setValue(round(self.attention_val * 100))
+            self.osc_client.send_message("/eeg/attention", int(self.attention_val * 100))
+        else:
+            self.ui.progressBar_7.setValue(round(self.attention_val_fromchannel * 100))
+            self.osc_client.send_message("/eeg/attention", int(self.attention_val_fromchannel * 100))
         #print(int(self.attention_val * 100))
-        self.osc_client.send_message("/eeg/attention", int(self.attention_val * 100))
-        self.osc_client.send_message("/eeg/alpha", int(self.alpharelpow * 100))
+
+        if self.alpha_source_ind == 0:
+            self.osc_client.send_message("/eeg/alpha", int(self.alpharelpow * 100))
+        else:
+            self.osc_client.send_message("/eeg/alpha", int(self.alpha_val_fromchannel * 100))
+        #print(int(self.alpharelpow * 100))
+
         self.osc_client.send_message("/eeg/gamma", int(self.gammarelpow * 100))
 
     def updatedata(self):
