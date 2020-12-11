@@ -1,95 +1,65 @@
-# interactiveEEG
-collaborative platform for transdisciplinary EEG exploitation. 
+# REAFFERENCE
+Collaborative platform for transdisciplinary EEG exploitation. 
+The repository is a container of codes for REAFFERENCE project.
 
-**introductory babbling:**
+CONCEPT:
+REAFFERENCE adds a new channel to the many sensory loops through which we interact with the world. It makes us aware of the hidden foundations of our conscious experience, by putting a visual scene under direct control of the complicated patterns of electrophysiological activity that constitute those same foundations. This is accomplished by on-line EEG analysis of scalp electric potentials, produced by the synchronous activity of large groups of neurons. Different features of this activity, like the relative power of alpha, beta and theta ratio, and spatial patterns of activations, are employed to control the features of the visual scene via concentration and relaxation. Thus the visual environment becomes an algorithmic visualization of the performer’s cerebral space, simulating the growth of organic bodies driven by the data registered during movement and rest. In an abstract digital space, the neuronal flora flourishes stimulated by behavior, movement and their reflection in the EEG trace, as an allegory of the ever interacting foundations of our cerebral activity. In fact, the more relaxed and focused is the performer, the faster and the more symmetric will be the visuals growth.
 
-EEG can be a powerful tool for expression, that bridges the artistic and scientific experiences. 
-It allows to add a neurocognitive dimension to the domain of interactivity, with the potential to demistify the public understanding of the secret life of the brain. 
-The experience of neurofeedback- where internal state, thought, and meditation can control auditory and visual scenes- is inspiring and fascinating. To be able to make it widely accessible is a precious opportunity, compatible with the evergrowing scene of multimedia performances and dance.
+BIO:
+REAFFERENCE is the brain child of an interdisciplinary team of artists and scientists with a common interest in embodiment, dance, neurofeedback, brain computer interface and interactive visualisation. We joined forces to develop  an accessible interactive EEG toolset compatible with the evergrowing scene of multimedia performances and dance, following open software and open hardware guidelines. We intend to make the experience of neurofeedback widely accessible to foster interactions between artists and neuroscientists.
 
-The starting focus of this project is a simple Python pipeline for motor imagery BCI. This allows us to test the potential and limits of the available device. We also keep an eye on basic visualisations of neural oscillations.
 
-Based on mBrainTrain devices until open source options will become avaible.
+REAFFERENCE team:
 
-**Useful links:**
+Developers:
+
+Georgy Zarubin | Researcher, Max Planck Institute for Human Cognitive and Brain Sciences, Leipzig, Germany 
+
+Mina Jamshidi Idaji | Researcher, Max Planck Institute for Human Cognitive and Brain Sciences, Leipzig, Germany 
+
+Tilman Stephani | Researcher, Max Planck Institute for Human Cognitive and Brain Sciences, Leipzig, Germany 
+
+Coordinator:
+
+Alessandro Braga | Researcher, Max Planck Institute for Human Cognitive and Brain Sciences, Leipzig, Germany
+
+Visual artist:
+
+Ulysse Fontaine | Interactive media designer, Leipzig, Germany
+
+Performer:
+
+Sophie Mars | Dance Movement Therapist + Dance Artist , Berlin, Germany
+
+Sound artist:
+
+Spherical Aberration | AV producer and visual artist, Berlin, Germany
+
+For questions and collaborations:
+braga@cbs.mpg.de
+
+
+STORY:
+
+The starting focus of this project was a simple Python pipeline for extraction of attention / relaxation levels and motor imagery activity from EEG to use it in a BCI framework. This allows us to test the potential and limits of the available device and ways to modulate related visual and sound spaces using streaming of data via OSC protocol to TouchDesigner and Ableton applications. 
+
+
+CURRENT STATE:
+
+The first performance was made as a part of EDGE 2020 Exhibition, recorded on 6.11.20 in ZiMMT e.V. Leipzig and available in virtual exhibition space (https://edge-neuro.art/virtual-exhibition-2020/). The performace was recorded and edited by Nicola Piccini (nicolapiccini.com) and Valerio Figuccio (valeriofiguccio.com).
+
+HARDWARE:
+
+The system is based on mBrainTrain mobile EEG device.
+
+LINKS:
 
 Device page: https://mbraintrain.com/support/
 
-*CREDENTIALS:*
-
-username: User_x73
-
-pass: xQ7b4etgv=6C
-
-
-Google doc for quick notes and general dumping: https://docs.google.com/document/d/1gqDmMJUV1vkObeEYlml45LO7qmUgNQ4syoi9aXsdOsI/edit?usp=sharing
+Google doc for quick notes, general dumping, data acquisition pipeline: https://docs.google.com/document/d/1gqDmMJUV1vkObeEYlml45LO7qmUgNQ4syoi9aXsdOsI/edit?usp=sharing
 
 Google drive for dataset sharing: https://drive.google.com/drive/folders/1cZ0uvtnLHsLnJOsBhiFi-ILcSbYPya7M?usp=sharing
 
 Openvibe page: http://openvibe.inria.fr/downloads/
 
 Pylsl: https://github.com/labstreaminglayer/liblsl-Python
-
-# Data acquisition pipeline
-
-**Step 0 : Environment setup**
-
-a) Install anaconda with python 3.x
-
-b) Install Openvibe. We are going to use "Designer" and "Acquisition Server" http://openvibe.inria.fr/downloads/
-
-c) Install pylsl using anaconda prompt https://github.com/labstreaminglayer/liblsl-Python
-
-`pip install pylsl`
-
-**Step 1 : Generate and stream fake data**
-
-a) Run open vibe acquisition server
-
-b) From the "Driver" selection menu, select either Oscillator or Time Signal
-
-c) In "Preferences", authorise "LSL_EnableLSLOutput" and change "LSL_SignalStreamName" to **EEG**
-
-d) Press "Connect" and "Play"
-
-**Step 1b : Stream pre-recorded data**
-
-a) Download data file of choice from the drive (link above)
-
-b) Run openvibe Designer. Load "LSLstreamer.mxs", acquired from the Drive folder (link above)
-
-c) Open "Generic stream reader" node. Change path and filename to data file path and filename
-
-d) Open "LSL Export" node. Change "Signal stream" to **EEG**
-
-e) Start scenario execution (play button)
-
-
-**Step 2 : Acquire stream on python (REDUNDANT WITH LSL scripts for Data acquisition)** 
-
- a) With either Designer or Server running, run Python and execute code below, or see pylsls samples (link above)
-
-
-`from pylsl import StreamInlet, resolve_stream`
-
-**first resolve an EEG stream on the lab network**
-
-`print("looking for an EEG stream...")`
-
-`streams = resolve_stream('name', 'EEG')`
-
-**create a new inlet to read from the stream**
-
-`inlet = StreamInlet(streams[0])`
-
-`while True:`
-    
-   `sample, timestamp = inlet.pull_sample()`
-   
-   `print(timestamp, sample)`
-   
-   
-
-
-
-
