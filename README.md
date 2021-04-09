@@ -2,7 +2,7 @@
 Collaborative platform for transdisciplinary EEG exploitation. 
 
 The repository is a container of codes for reAFFERENCE projects.
-Image links to the video of our first performance.
+Image links to the teaser of our first implementation.
 [![CLICK FOR VIDEO](perfompic.jpg)](http://www.youtube.com/watch?v=xrO0UerIm2Q "reAFFERENCE")
 
 CONCEPT:
