@@ -2,13 +2,12 @@
 Collaborative platform for transdisciplinary EEG exploitation. 
 
 The repository is a container of codes for reAFFERENCE projects.
-
-![performancepic](perfompic.jpg)
-
+Image links to the video of our first performance.
+[![CLICK FOR VIDEO](perfompic.jpg)](http://www.youtube.com/watch?v=xrO0UerIm2Q "reAFFERENCE")
 CONCEPT:
 reAFFERENCE adds a new channel to the many sensory loops through which we interact with the world. It makes us aware of the hidden foundations of our conscious experience, by putting a visual scene under direct control of the complicated patterns of electrophysiological activity that constitute those same foundations. This is accomplished by on-line EEG analysis of scalp electric potentials, produced by the synchronous activity of large groups of neurons. Different features of this activity, like the relative power of alpha, beta and theta ratio, and spatial patterns of activations, are employed to control the features of the visual scene via concentration and relaxation. Thus the visual environment becomes an algorithmic visualization of the performer’s cerebral space, simulating the growth of organic bodies driven by the data registered during movement and rest. In an abstract digital space, the neuronal flora flourishes stimulated by behavior, movement and their reflection in the EEG trace, as an allegory of the ever interacting foundations of our cerebral activity. In fact, the more relaxed and focused is the performer, the faster and the more symmetric will be the visuals growth.
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/xrO0UerIm2Q" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 
 BIO:
 reAFFERENCE is the brain child of an interdisciplinary team of artists and scientists with a common interest in embodiment, dance, neurofeedback, brain computer interface and interactive visualisation. We joined forces to develop  an accessible interactive EEG toolset compatible with the evergrowing scene of multimedia performances and dance, following open software and open hardware guidelines. We intend to make the experience of neurofeedback widely accessible to foster interactions between artists and neuroscientists.
